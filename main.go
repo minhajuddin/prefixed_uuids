@@ -10,6 +10,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const separator = "."
+
 var (
 	ErrInvalidEntity             = errors.New("invalid entity")
 	ErrInvalidPrefixedUUIDFormat = errors.New("invalid prefixed uuid format")
@@ -17,31 +19,16 @@ var (
 	ErrInvalidUUIDFormat         = errors.New("invalid uuid format")
 	ErrUnknownPrefix             = errors.New("unknown prefix")
 )
+var (
+	NullEntity              Entity = 0
+	base64withNoPadding            = base64.URLEncoding.WithPadding(base64.NoPadding)
+	prefixAllowedCharsRegex        = regexp.MustCompile(`^[a-z0-9_-]+$`)
+)
 
 type Entity int
-
-var NullEntity Entity = 0
-
 type PrefixInfo struct {
 	Entity Entity
 	Prefix string
-}
-
-const separator = "."
-
-var prefixAllowedCharsRegex = regexp.MustCompile(`^[a-z0-9_-]+$`)
-
-func NewPrefixInfo(entity Entity, prefix string) PrefixInfo {
-	if entity == NullEntity {
-		panic("entity cannot be NullEntity, use a non-zero value")
-	}
-	if !prefixAllowedCharsRegex.MatchString(prefix) {
-		panic("prefix must be in lowercase and contain only alphanumeric characters, underscores, and hyphens")
-	}
-	return PrefixInfo{
-		Entity: entity,
-		Prefix: prefix,
-	}
 }
 
 type Registry struct {
@@ -49,27 +36,32 @@ type Registry struct {
 	reverse  map[string]Entity
 }
 
-var base64withNoPadding = base64.URLEncoding.WithPadding(base64.NoPadding)
-
-func (r Registry) Serialize(entity Entity, uuid uuid.UUID) string {
-	// MarshalBinary never returns an error
-	uuidBytes, _ := uuid.MarshalBinary()
-	return fmt.Sprintf("%s.%s", r.prefixes[entity], base64withNoPadding.EncodeToString(uuidBytes))
-}
-
-func NewRegistry(prefixes []PrefixInfo) Registry {
-	registry := Registry{
-		prefixes: make(map[Entity]string),
-		reverse:  make(map[string]Entity),
+func NewRegistry(prefixes []PrefixInfo) (*Registry, error) {
+	registry := &Registry{
+		prefixes: make(map[Entity]string, len(prefixes)),
+		reverse:  make(map[string]Entity, len(prefixes)),
 	}
 	for _, prefix := range prefixes {
+		if prefix.Entity == NullEntity {
+			return nil, fmt.Errorf("entity cannot be NullEntity, use a non-zero value")
+		}
+		if !prefixAllowedCharsRegex.MatchString(prefix.Prefix) {
+			return nil, fmt.Errorf("prefix must be in lowercase and contain only alphanumeric characters, underscores, and hyphens")
+		}
+
 		registry.prefixes[prefix.Entity] = prefix.Prefix
 		registry.reverse[prefix.Prefix] = prefix.Entity
 	}
-	return registry
+	return registry, nil
 }
 
-func (r Registry) DeserializeWithEntity(uuidStr string) (Entity, uuid.UUID, error) {
+func (r *Registry) Serialize(entity Entity, uuid uuid.UUID) string {
+	// MarshalBinary never returns an error
+	uuidBytes, _ := uuid.MarshalBinary()
+	return fmt.Sprintf("%s%s%s", r.prefixes[entity], separator, base64withNoPadding.EncodeToString(uuidBytes))
+}
+
+func (r *Registry) DeserializeWithEntity(uuidStr string) (Entity, uuid.UUID, error) {
 	parts := strings.Split(uuidStr, separator)
 	if len(parts) != 2 {
 		return NullEntity, uuid.Nil, fmt.Errorf("%w", ErrInvalidPrefixedUUIDFormat)
@@ -91,7 +83,7 @@ func (r Registry) DeserializeWithEntity(uuidStr string) (Entity, uuid.UUID, erro
 	return parsedEntity, parsedUUID, nil
 }
 
-func (r Registry) Deserialize(entity Entity, uuidStr string) (uuid.UUID, error) {
+func (r *Registry) Deserialize(entity Entity, uuidStr string) (uuid.UUID, error) {
 	parsedEntity, parsedUUID, err := r.DeserializeWithEntity(uuidStr)
 	if err != nil {
 		return uuid.Nil, err
