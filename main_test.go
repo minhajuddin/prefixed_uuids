@@ -19,17 +19,23 @@ const (
 	SessionID Entity = 7
 )
 
-var prefixer = NewRegistry([]PrefixInfo{
-	{SessionID, "sid"},
-	{User, "user"},
-	{UserV2, "user_v2"},
-	{UserV3, "user_v3"},
-	{Post, "post"},
-	{Comment, "comment"},
-	{Other, "other"},
-})
+var prefixer *Registry
 
-// End of setup <-- This is all you need to do to add new prefixes
+func init() {
+	var err error
+	prefixer, err = NewRegistry([]PrefixInfo{
+		{SessionID, "sid"},
+		{User, "user"},
+		{UserV2, "user_v2"},
+		{UserV3, "user_v3"},
+		{Post, "post"},
+		{Comment, "comment"},
+		{Other, "other"},
+	})
+	if err != nil {
+		panic(err)
+	}
+}
 
 func TestPrefixes(t *testing.T) {
 	u, err := uuid.Parse("0195e37b-f93f-7518-a9ac-a2be68463c7e")
@@ -121,61 +127,62 @@ func TestEntityMismatch(t *testing.T) {
 	assert.Equal(t, parsedUUID, uuid.UUID{})
 }
 
-func TestEdgeCases(t *testing.T) {
+func TestRegistryCreation(t *testing.T) {
 	tests := []struct {
 		name          string
-		entity        Entity
-		prefix        string
-		shouldPanic   bool
-		panicContains string
+		prefixes      []PrefixInfo
+		expectedError string
 	}{
 		{
-			name:          "null entity",
-			entity:        NullEntity,
-			prefix:        "test",
-			shouldPanic:   true,
-			panicContains: "entity cannot be NullEntity",
+			name: "null entity",
+			prefixes: []PrefixInfo{
+				{NullEntity, "test"},
+			},
+			expectedError: "entity cannot be NullEntity",
 		},
 		{
-			name:          "uppercase prefix",
-			entity:        Entity(100),
-			prefix:        "Test",
-			shouldPanic:   true,
-			panicContains: "prefix must be in lowercase",
+			name: "uppercase prefix",
+			prefixes: []PrefixInfo{
+				{Entity(100), "Test"},
+			},
+			expectedError: "prefix must be in lowercase",
 		},
 		{
-			name:          "prefix with spaces",
-			entity:        Entity(100),
-			prefix:        "test prefix",
-			shouldPanic:   true,
-			panicContains: "prefix must be in lowercase",
+			name: "prefix with spaces",
+			prefixes: []PrefixInfo{
+				{Entity(100), "test prefix"},
+			},
+			expectedError: "prefix must be in lowercase",
 		},
 		{
-			name:          "prefix with special chars",
-			entity:        Entity(100),
-			prefix:        "test@prefix",
-			shouldPanic:   true,
-			panicContains: "prefix must be in lowercase",
+			name: "prefix with special chars",
+			prefixes: []PrefixInfo{
+				{Entity(100), "test@prefix"},
+			},
+			expectedError: "prefix must be in lowercase",
 		},
 		{
-			name:        "valid prefix",
-			entity:      Entity(100),
-			prefix:      "test-prefix_123",
-			shouldPanic: false,
+			name: "valid prefix",
+			prefixes: []PrefixInfo{
+				{Entity(100), "test-prefix_123"},
+			},
+			expectedError: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.shouldPanic {
-				assert.Panics(t, func() {
-					NewPrefixInfo(tt.entity, tt.prefix)
-				})
+			registry, err := NewRegistry(tt.prefixes)
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.Nil(t, registry)
 				return
 			}
-			info := NewPrefixInfo(tt.entity, tt.prefix)
-			assert.Equal(t, info.Entity, tt.entity)
-			assert.Equal(t, info.Prefix, tt.prefix)
+			assert.NoError(t, err)
+			assert.NotNil(t, registry)
+			assert.Equal(t, tt.prefixes[0].Prefix, registry.prefixes[tt.prefixes[0].Entity])
+			assert.Equal(t, tt.prefixes[0].Entity, registry.reverse[tt.prefixes[0].Prefix])
 		})
 	}
 }
