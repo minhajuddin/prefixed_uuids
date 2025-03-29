@@ -123,7 +123,7 @@ func TestEntityMismatch(t *testing.T) {
 	prefixedUUID := prefixer.Serialize(User, u)
 	parsedUUID, err := prefixer.Deserialize(Post, prefixedUUID)
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrInvalidEntity))
+	assert.True(t, errors.Is(err, ErrEntityMismatch))
 	assert.Equal(t, parsedUUID, uuid.UUID{})
 }
 

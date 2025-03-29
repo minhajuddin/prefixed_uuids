@@ -13,7 +13,7 @@ import (
 const separator = "."
 
 var (
-	ErrInvalidEntity             = errors.New("invalid entity")
+	ErrEntityMismatch            = errors.New("entity mismatch")
 	ErrInvalidPrefixedUUIDFormat = errors.New("invalid prefixed uuid format")
 	ErrInvalidUUIDBadBase64      = errors.New("invalid uuid bad base64 part")
 	ErrInvalidUUIDFormat         = errors.New("invalid uuid format")
@@ -90,7 +90,7 @@ func (r *Registry) Deserialize(entity Entity, uuidStr string) (uuid.UUID, error)
 	}
 
 	if parsedEntity != entity {
-		return uuid.Nil, fmt.Errorf("%w", ErrInvalidEntity)
+		return uuid.Nil, fmt.Errorf("%w", ErrEntityMismatch)
 	}
 
 	return parsedUUID, nil
