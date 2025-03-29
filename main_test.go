@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"gotest.tools/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -29,12 +29,12 @@ var prefixer = NewRegistry([]PrefixInfo{
 
 func TestPrefixes(t *testing.T) {
 	uuid, err := uuid.Parse("0195e37b-f93f-7518-a9ac-a2be68463c7e")
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "user.AZXje_k_dRiprKK-aEY8fg", prefixer.Serialize(User, uuid))
 	assert.Equal(t, "user_v2.AZXje_k_dRiprKK-aEY8fg", prefixer.Serialize(UserV2, uuid))
 
 	uuid, err = prefixer.Deserialize(User, "user.AZXje_k_dRiprKK-aEY8fg")
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, uuid.String(), "0195e37b-f93f-7518-a9ac-a2be68463c7e")
 
 	// Shorter than hex uuid and urlsafe base64
@@ -42,7 +42,7 @@ func TestPrefixes(t *testing.T) {
 	assert.Equal(t, len(uuid.String()), 36)                  // 0195e37b-f93f-7518-a9ac-a2be68463c7e
 
 	e, uuid, err := prefixer.DeserializeWithEntity("post.AZXje_k_dRiprKK-aEY8fg")
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, e, Post)
 	assert.Equal(t, uuid.String(), "0195e37b-f93f-7518-a9ac-a2be68463c7e")
 

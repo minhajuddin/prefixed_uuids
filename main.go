@@ -82,11 +82,11 @@ func (r Registry) DeserializeWithEntity(uuidStr string) (Entity, uuid.UUID, erro
 
 	uuidBytes, err := base64withNoPadding.DecodeString(parts[1])
 	if err != nil {
-		return NullEntity, uuid.Nil, fmt.Errorf("%w %w", err, ErrInvalidUUIDBadBase64)
+		return NullEntity, uuid.Nil, errors.Join(err, ErrInvalidUUIDBadBase64)
 	}
 	parsedUUID, err := uuid.FromBytes(uuidBytes)
 	if err != nil {
-		return NullEntity, uuid.Nil, fmt.Errorf("%w %w", err, ErrInvalidUUIDFormat)
+		return NullEntity, uuid.Nil, errors.Join(err, ErrInvalidUUIDFormat)
 	}
 	return parsedEntity, parsedUUID, nil
 }
