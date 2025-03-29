@@ -19,12 +19,17 @@ var prefixer Registry = NewRegistry(
 	NewPrefixInfo(Comment, "comment"),
 )
 
-func TestFull(t *testing.T) {
+func TestPrefixes(t *testing.T) {
 	uuid, err := uuid.Parse("0195e37b-f93f-7518-a9ac-a2be68463c7e")
 	assert.NilError(t, err)
 	assert.Equal(t, "user.AZXje_k_dRiprKK-aEY8fg", prefixer.Serialize(User, uuid))
 
 	uuid, err = prefixer.Deserialize(User, "user.AZXje_k_dRiprKK-aEY8fg")
 	assert.NilError(t, err)
+	assert.Equal(t, uuid.String(), "0195e37b-f93f-7518-a9ac-a2be68463c7e")
+
+	e, uuid, err := prefixer.DeserializeWithEntity("post.AZXje_k_dRiprKK-aEY8fg")
+	assert.NilError(t, err)
+	assert.Equal(t, e, Post)
 	assert.Equal(t, uuid.String(), "0195e37b-f93f-7518-a9ac-a2be68463c7e")
 }

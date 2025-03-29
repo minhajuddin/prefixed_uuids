@@ -10,6 +10,9 @@ import (
 )
 
 type Entity int
+
+var NullEntity Entity = 0
+
 type PrefixInfo struct {
 	Entity Entity
 	Prefix string
@@ -54,25 +57,38 @@ func NewRegistry(prefixes ...PrefixInfo) Registry {
 	return registry
 }
 
-func (r Registry) Deserialize(entity Entity, uuidStr string) (uuid.UUID, error) {
+func (r Registry) DeserializeWithEntity(uuidStr string) (Entity, uuid.UUID, error) {
 	parts := strings.Split(uuidStr, separator)
 	if len(parts) != 2 {
 		// TODO: sentinel error
-		return uuid.Nil, fmt.Errorf("invalid uuid format")
+		return NullEntity, uuid.Nil, fmt.Errorf("invalid uuid format")
 	}
 	prefix := parts[0]
 	parsedEntity, ok := r.reverse[prefix]
 	if !ok {
-		return uuid.Nil, fmt.Errorf("unknown prefix")
+		return NullEntity, uuid.Nil, fmt.Errorf("unknown prefix")
+	}
+
+	uuidBytes, err := base64withNoPadding.DecodeString(parts[1])
+	if err != nil {
+		return NullEntity, uuid.Nil, fmt.Errorf("invalid uuid format")
+	}
+	parsedUUID, err := uuid.FromBytes(uuidBytes)
+	if err != nil {
+		return NullEntity, uuid.Nil, fmt.Errorf("invalid uuid format")
+	}
+	return parsedEntity, parsedUUID, nil
+}
+
+func (r Registry) Deserialize(entity Entity, uuidStr string) (uuid.UUID, error) {
+	parsedEntity, parsedUUID, err := r.DeserializeWithEntity(uuidStr)
+	if err != nil {
+		return uuid.Nil, err
 	}
 
 	if parsedEntity != entity {
 		return uuid.Nil, fmt.Errorf("invalid entity")
 	}
 
-	uuidBytes, err := base64withNoPadding.DecodeString(parts[1])
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("invalid uuid format")
-	}
-	return uuid.FromBytes(uuidBytes)
+	return parsedUUID, nil
 }
