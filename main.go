@@ -2,11 +2,20 @@ package prefixed_uuids
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
+)
+
+var (
+	ErrInvalidEntity             = errors.New("invalid entity")
+	ErrInvalidPrefixedUUIDFormat = errors.New("invalid prefixed uuid format")
+	ErrInvalidUUIDBadBase64      = errors.New("invalid uuid bad base64 part")
+	ErrInvalidUUIDFormat         = errors.New("invalid uuid format")
+	ErrUnknownPrefix             = errors.New("unknown prefix")
 )
 
 type Entity int
@@ -63,22 +72,21 @@ func NewRegistry(prefixes []PrefixInfo) Registry {
 func (r Registry) DeserializeWithEntity(uuidStr string) (Entity, uuid.UUID, error) {
 	parts := strings.Split(uuidStr, separator)
 	if len(parts) != 2 {
-		// TODO: sentinel error
-		return NullEntity, uuid.Nil, fmt.Errorf("invalid uuid format")
+		return NullEntity, uuid.Nil, fmt.Errorf("%w", ErrInvalidPrefixedUUIDFormat)
 	}
 	prefix := parts[0]
 	parsedEntity, ok := r.reverse[prefix]
 	if !ok {
-		return NullEntity, uuid.Nil, fmt.Errorf("unknown prefix")
+		return NullEntity, uuid.Nil, fmt.Errorf("%w", ErrUnknownPrefix)
 	}
 
 	uuidBytes, err := base64withNoPadding.DecodeString(parts[1])
 	if err != nil {
-		return NullEntity, uuid.Nil, fmt.Errorf("invalid uuid format")
+		return NullEntity, uuid.Nil, fmt.Errorf("%w %w", err, ErrInvalidUUIDBadBase64)
 	}
 	parsedUUID, err := uuid.FromBytes(uuidBytes)
 	if err != nil {
-		return NullEntity, uuid.Nil, fmt.Errorf("invalid uuid format")
+		return NullEntity, uuid.Nil, fmt.Errorf("%w %w", err, ErrInvalidUUIDFormat)
 	}
 	return parsedEntity, parsedUUID, nil
 }
@@ -90,7 +98,7 @@ func (r Registry) Deserialize(entity Entity, uuidStr string) (uuid.UUID, error) 
 	}
 
 	if parsedEntity != entity {
-		return uuid.Nil, fmt.Errorf("invalid entity")
+		return uuid.Nil, fmt.Errorf("%w", ErrInvalidEntity)
 	}
 
 	return parsedUUID, nil
