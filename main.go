@@ -23,6 +23,9 @@ const separator = "."
 var prefixAllowedCharsRegex = regexp.MustCompile(`^[a-z0-9_-]+$`)
 
 func NewPrefixInfo(entity Entity, prefix string) PrefixInfo {
+	if entity == NullEntity {
+		panic("entity cannot be NullEntity, use a non-zero value")
+	}
 	if !prefixAllowedCharsRegex.MatchString(prefix) {
 		panic("prefix must be in lowercase and contain only alphanumeric characters, underscores, and hyphens")
 	}
