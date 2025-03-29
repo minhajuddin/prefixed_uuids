@@ -13,11 +13,11 @@ const (
 	Comment Entity = 3
 )
 
-var prefixer Registry = NewRegistry(
-	NewPrefixInfo(User, "user"),
-	NewPrefixInfo(Post, "post"),
-	NewPrefixInfo(Comment, "comment"),
-)
+var prefixer Registry = NewRegistry([]PrefixInfo{
+	{User, "user"},
+	{Post, "post"},
+	{Comment, "comment"},
+})
 
 func TestPrefixes(t *testing.T) {
 	uuid, err := uuid.Parse("0195e37b-f93f-7518-a9ac-a2be68463c7e")

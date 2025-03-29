@@ -48,7 +48,7 @@ func (r Registry) Serialize(entity Entity, uuid uuid.UUID) string {
 	return fmt.Sprintf("%s.%s", r.prefixes[entity], base64withNoPadding.EncodeToString(uuidBytes))
 }
 
-func NewRegistry(prefixes ...PrefixInfo) Registry {
+func NewRegistry(prefixes []PrefixInfo) Registry {
 	registry := Registry{
 		prefixes: make(map[Entity]string),
 		reverse:  make(map[string]Entity),
