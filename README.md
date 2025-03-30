@@ -134,10 +134,22 @@ registry, err := NewRegistry([]PrefixInfo{
 
 ## Example Use Cases
 
-1. **Database IDs**: Use prefixed UUIDs as primary keys in your database to identify different types of entities.
-2. **API Resources**: Use prefixed UUIDs in your API endpoints to identify resources.
-3. **File Storage**: Use prefixed UUIDs as filenames to identify the type of content stored.
-4. **Versioned Resources**: Use prefixed UUIDs to identify different versions of the same entity type.
+The primary use case for this is to convert UUIDs to friendly external IDs when sending it to external systems.
+Whenever you show the ID to the outside world, you use a prefixed_uuid and once it gets past your edge code, it is parsed properly.
+This way, if you ask a customer for their id and they give you `session.AZXje_k_dRiprKK-aEY8fg` instead of `user.AZXje_k_dRiprKK-aEY8fg`, you'll know that they gave you the wrong ID. Also, looking at logs, whenever you see an id, you'll know exactly what it is referring to.
+
+Example uses
+- **Session IDs**: `sid.AZXje_k_dRiprKK-aEY8fg`
+- **User ID**: `user.AZXje_k_dRiprKK-aEY8fg`
+- **JWT Token ID**: `jti.AZXje_k_dRiprKK-aEY8fg`
+- **Secret Key (Production)**: `sk_live.AZXje_k_dRiprKK-aEY8fg`
+- **Secret Key (Test)**: `sk_test.AZXje_k_dRiprKK-aEY8fg`
+
+## FAQs
+1. Can I use this with integer IDs?
+    No. However, feel free to fork this and change the code to serialize/deserialize ints. It is doable with just a few changes.
+2. Why use `.` for the separator instead of `_` or `-`?
+    `_` and `-` are part of the alphabet for the base64url encoding scheme that we use to encode the UUID bytes. To make the code more robust, we use a separator that is not part of that alphabet. Also, we don't use `:` because it is encoded in urls which is a minor annoyance. The only other separator that can be used other than `.` which is not encoded is `~`.
 
 ## Size Comparison
 
