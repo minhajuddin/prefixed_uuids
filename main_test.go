@@ -186,3 +186,47 @@ func TestRegistryCreation(t *testing.T) {
 		})
 	}
 }
+
+func TestCustomSeparator(t *testing.T) {
+	// Create a new registry with a custom separator
+	customRegistry, err := NewRegistry([]PrefixInfo{
+		{User, "user"},
+		{Post, "post"},
+	})
+	assert.NoError(t, err)
+
+	// Set custom separator using fluent interface
+	customRegistry, err = customRegistry.WithSeparator("~")
+	assert.NoError(t, err)
+
+	// Verify serialize works with custom separator
+	u, err := uuid.Parse("0195e37b-f93f-7518-a9ac-a2be68463c7e")
+	assert.NoError(t, err)
+
+	prefixedUUID := customRegistry.Serialize(User, u)
+	assert.Equal(t, "user~AZXje_k_dRiprKK-aEY8fg", prefixedUUID)
+
+	// Verify deserialize works with custom separator
+	parsedUUID, err := customRegistry.Deserialize(User, prefixedUUID)
+	assert.NoError(t, err)
+	assert.Equal(t, u.String(), parsedUUID.String())
+
+	// Test deserialize with entity
+	entity, parsedUUID, err := customRegistry.DeserializeWithEntity(prefixedUUID)
+	assert.NoError(t, err)
+	assert.Equal(t, User, entity)
+	assert.Equal(t, u.String(), parsedUUID.String())
+
+	// Test with invalid separator
+	_, err = customRegistry.WithSeparator(":")
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, ErrInvalidSeparator))
+
+	// Test with another valid separator
+	customRegistry, err = customRegistry.WithSeparator(".")
+	assert.NoError(t, err)
+
+	// Verify it works with the changed separator
+	prefixedUUID = customRegistry.Serialize(User, u)
+	assert.Equal(t, "user.AZXje_k_dRiprKK-aEY8fg", prefixedUUID)
+}

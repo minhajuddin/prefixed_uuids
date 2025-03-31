@@ -10,6 +10,7 @@ A Go package that provides a type-safe way to work with prefixed UUIDs. This pac
 - URL-safe base64 encoding for compact representation
 - Runtime validation of entity types and prefixes
 - Support for versioned entities (e.g., UserV2, UserV3)
+- Customizable separator character (defaults to `.`, can also use `~`)
 
 ## Installation
 
@@ -46,12 +47,29 @@ if err != nil {
 }
 ```
 
+### Optional: Custom Separator
+
+By default, the registry uses `.` as the separator. You can customize this using the fluent interface:
+
+```go
+// Use '~' as a separator instead of the default '.'
+registry, err = registry.WithSeparator("~")
+if err != nil {
+    // Handle error
+}
+// This will produce IDs like "user~AZXje_k_dRiprKK-aEY8fg"
+```
+
+Note: Only `.` and `~` are allowed as separators since they are not part of the base64url encoding
+alphabet and are not encoded in URLs.
+
 ### Creating Prefixed UUIDs
 
 ```go
 uuid := uuid.MustParse("0195e37b-f93f-7518-a9ac-a2be68463c7e")
 prefixedUUID := registry.Serialize(User, uuid)
-// Result: "user.AZXje_k_dRiprKK-aEY8fg"
+// Result with default separator: "user.AZXje_k_dRiprKK-aEY8fg"
+// Result with '~' separator: "user~AZXje_k_dRiprKK-aEY8fg"
 
 // Versioned entities
 prefixedUUIDV2 := registry.Serialize(UserV2, uuid)
@@ -149,7 +167,7 @@ Example uses
 1. Can I use this with integer IDs?
     No. However, feel free to fork this and change the code to serialize/deserialize ints. It is doable with just a few changes.
 2. Why use `.` for the separator instead of `_` or `-`?
-    `_` and `-` are part of the alphabet for the base64url encoding scheme that we use to encode the UUID bytes. To make the code more robust, we use a separator that is not part of that alphabet. Also, we don't use `:` because it is encoded in urls which is a minor annoyance. The only other separator that can be used other than `.` which is not encoded is `~`.
+    `_` and `-` are part of the alphabet for the base64url encoding scheme that we use to encode the UUID bytes. To make the code more robust, we use a separator that is not part of that alphabet. Also, we don't use `:` because it is encoded in urls which is a minor annoyance. The only other separator that can be used other than `.` which is not encoded is `~`. You can now use either `.` or `~` as separators with the `WithSeparator` method.
 
 ## Size Comparison
 

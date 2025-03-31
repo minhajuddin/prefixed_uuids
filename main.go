@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const separator = "."
+const defaultSeparator = "."
 
 var (
 	ErrEntityMismatch            = errors.New("entity mismatch")
@@ -18,11 +18,13 @@ var (
 	ErrInvalidUUIDBadBase64      = errors.New("invalid uuid bad base64 part")
 	ErrInvalidUUIDFormat         = errors.New("invalid uuid format")
 	ErrUnknownPrefix             = errors.New("unknown prefix")
+	ErrInvalidSeparator          = errors.New("invalid separator")
 )
 var (
-	NullEntity              Entity = 0
-	base64withNoPadding            = base64.URLEncoding.WithPadding(base64.NoPadding)
-	prefixAllowedCharsRegex        = regexp.MustCompile(`^[a-z0-9_-]+$`)
+	NullEntity                 Entity = 0
+	base64withNoPadding               = base64.URLEncoding.WithPadding(base64.NoPadding)
+	prefixAllowedCharsRegex           = regexp.MustCompile(`^[a-z0-9_-]+$`)
+	separatorAllowedCharsRegex        = regexp.MustCompile(`^[\.~]$`)
 )
 
 type Entity int
@@ -32,14 +34,16 @@ type PrefixInfo struct {
 }
 
 type Registry struct {
-	prefixes map[Entity]string
-	reverse  map[string]Entity
+	prefixes  map[Entity]string
+	reverse   map[string]Entity
+	separator string
 }
 
 func NewRegistry(prefixes []PrefixInfo) (*Registry, error) {
 	registry := &Registry{
-		prefixes: make(map[Entity]string, len(prefixes)),
-		reverse:  make(map[string]Entity, len(prefixes)),
+		prefixes:  make(map[Entity]string, len(prefixes)),
+		reverse:   make(map[string]Entity, len(prefixes)),
+		separator: defaultSeparator,
 	}
 	for _, prefix := range prefixes {
 		if prefix.Entity == NullEntity {
@@ -55,14 +59,25 @@ func NewRegistry(prefixes []PrefixInfo) (*Registry, error) {
 	return registry, nil
 }
 
+// WithSeparator sets a custom separator for the Registry.
+// Only '.' and '~' are allowed as separators since they are
+// not part of the base64url encoding alphabet and not encoded in URLs.
+func (r *Registry) WithSeparator(separator string) (*Registry, error) {
+	if !separatorAllowedCharsRegex.MatchString(separator) {
+		return nil, fmt.Errorf("%w: only '.' and '~' are allowed", ErrInvalidSeparator)
+	}
+	r.separator = separator
+	return r, nil
+}
+
 func (r *Registry) Serialize(entity Entity, uuid uuid.UUID) string {
 	// MarshalBinary never returns an error
 	uuidBytes, _ := uuid.MarshalBinary()
-	return fmt.Sprintf("%s%s%s", r.prefixes[entity], separator, base64withNoPadding.EncodeToString(uuidBytes))
+	return fmt.Sprintf("%s%s%s", r.prefixes[entity], r.separator, base64withNoPadding.EncodeToString(uuidBytes))
 }
 
 func (r *Registry) DeserializeWithEntity(uuidStr string) (Entity, uuid.UUID, error) {
-	parts := strings.Split(uuidStr, separator)
+	parts := strings.Split(uuidStr, r.separator)
 	if len(parts) != 2 {
 		return NullEntity, uuid.Nil, fmt.Errorf("%w", ErrInvalidPrefixedUUIDFormat)
 	}
