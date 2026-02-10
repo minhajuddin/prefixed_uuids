@@ -60,6 +60,10 @@ type Registry struct {
 }
 
 func NewRegistry(prefixes []PrefixInfo) (*Registry, error) {
+	return NewRegistry2(prefixes, nil)
+}
+
+func NewRegistry2(prefixes []PrefixInfo, multiPrefixes []MultiPrefixInfo) (*Registry, error) {
 	registry := &Registry{
 		prefixes:  make(map[Entity]string, len(prefixes)),
 		reverse:   make(map[string]Entity, len(prefixes)),
@@ -77,6 +81,34 @@ func NewRegistry(prefixes []PrefixInfo) (*Registry, error) {
 		registry.prefixes[prefix.Entity] = prefix.Prefix
 		registry.reverse[prefix.Prefix] = prefix.Entity
 	}
+
+	for _, info := range multiPrefixes {
+		if info.Entity == NullEntity {
+			return nil, fmt.Errorf("entity cannot be NullEntity, use a non-zero value")
+		}
+		if !prefixAllowedCharsRegex.MatchString(info.Prefix) {
+			return nil, fmt.Errorf("prefix must be in lowercase and contain only alphanumeric characters, underscores, and hyphens")
+		}
+		if _, exists := registry.prefixes[info.Entity]; exists {
+			return nil, fmt.Errorf("entity %d is already registered", info.Entity)
+		}
+		if _, exists := registry.reverse[info.Prefix]; exists {
+			return nil, fmt.Errorf("prefix %q is already registered", info.Prefix)
+		}
+		if len(info.Entities) < 2 {
+			return nil, fmt.Errorf("multi type must have at least 2 component entities")
+		}
+		for _, e := range info.Entities {
+			if _, ok := registry.prefixes[e]; !ok {
+				return nil, fmt.Errorf("component entity %d is not registered in the registry", e)
+			}
+		}
+
+		registry.prefixes[info.Entity] = info.Prefix
+		registry.reverse[info.Prefix] = info.Entity
+		registry.multi[info.Entity] = info.Entities
+	}
+
 	return registry, nil
 }
 
@@ -139,34 +171,6 @@ func (r *Registry) Deserialize(entity Entity, uuidStr string) (uuid.UUID, error)
 	}
 
 	return parsedUUID, nil
-}
-
-func (r *Registry) AddMultiPrefix(info MultiPrefixInfo) error {
-	if info.Entity == NullEntity {
-		return fmt.Errorf("entity cannot be NullEntity, use a non-zero value")
-	}
-	if !prefixAllowedCharsRegex.MatchString(info.Prefix) {
-		return fmt.Errorf("prefix must be in lowercase and contain only alphanumeric characters, underscores, and hyphens")
-	}
-	if _, exists := r.prefixes[info.Entity]; exists {
-		return fmt.Errorf("entity %d is already registered", info.Entity)
-	}
-	if _, exists := r.reverse[info.Prefix]; exists {
-		return fmt.Errorf("prefix %q is already registered", info.Prefix)
-	}
-	if len(info.Entities) < 2 {
-		return fmt.Errorf("multi type must have at least 2 component entities")
-	}
-	for _, e := range info.Entities {
-		if _, ok := r.prefixes[e]; !ok {
-			return fmt.Errorf("component entity %d is not registered in the registry", e)
-		}
-	}
-
-	r.prefixes[info.Entity] = info.Prefix
-	r.reverse[info.Prefix] = info.Entity
-	r.multi[info.Entity] = info.Entities
-	return nil
 }
 
 func (r *Registry) SerializeMulti(entity Entity, pairs ...EntityUUID) (string, error) {

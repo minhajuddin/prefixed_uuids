@@ -113,15 +113,17 @@ const (
     UserPostComment Entity = 11
 )
 
-registry, err := NewRegistry([]PrefixInfo{
-    {User, "user"},
-    {Post, "post"},
-    {Comment, "comment"},
-})
-
-// Register multi types — component entities must already be registered
-registry.AddMultiPrefix(MultiPrefixInfo{UserPost, "up", []Entity{User, Post}})
-registry.AddMultiPrefix(MultiPrefixInfo{UserPostComment, "upc", []Entity{User, Post, Comment}})
+registry, err := NewRegistry2(
+    []PrefixInfo{
+        {User, "user"},
+        {Post, "post"},
+        {Comment, "comment"},
+    },
+    []MultiPrefixInfo{
+        {UserPost, "up", []Entity{User, Post}},
+        {UserPostComment, "upc", []Entity{User, Post, Comment}},
+    },
+)
 ```
 
 Serializing multi UUIDs:

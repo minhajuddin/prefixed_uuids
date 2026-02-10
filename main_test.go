@@ -26,24 +26,21 @@ var prefixer *Registry
 
 func init() {
 	var err error
-	prefixer, err = NewRegistry([]PrefixInfo{
-		{SessionID, "sid"},
-		{User, "user"},
-		{UserV2, "user_v2"},
-		{UserV3, "user_v3"},
-		{Post, "post"},
-		{Comment, "comment"},
-		{Other, "other"},
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	err = prefixer.AddMultiPrefix(MultiPrefixInfo{UserPost, "up", []Entity{User, Post}})
-	if err != nil {
-		panic(err)
-	}
-	err = prefixer.AddMultiPrefix(MultiPrefixInfo{UserPostComment, "upc", []Entity{User, Post, Comment}})
+	prefixer, err = NewRegistry2(
+		[]PrefixInfo{
+			{SessionID, "sid"},
+			{User, "user"},
+			{UserV2, "user_v2"},
+			{UserV3, "user_v3"},
+			{Post, "post"},
+			{Comment, "comment"},
+			{Other, "other"},
+		},
+		[]MultiPrefixInfo{
+			{UserPost, "up", []Entity{User, Post}},
+			{UserPostComment, "upc", []Entity{User, Post, Comment}},
+		},
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -423,15 +420,17 @@ func TestMultiDeserializeErrorCases(t *testing.T) {
 }
 
 func TestMultiWithCustomSeparator(t *testing.T) {
-	customRegistry, err := NewRegistry([]PrefixInfo{
-		{User, "user"},
-		{Post, "post"},
-	})
+	customRegistry, err := NewRegistry2(
+		[]PrefixInfo{
+			{User, "user"},
+			{Post, "post"},
+		},
+		[]MultiPrefixInfo{
+			{UserPost, "up", []Entity{User, Post}},
+		},
+	)
 	assert.NoError(t, err)
 	customRegistry, err = customRegistry.WithSeparator("~")
-	assert.NoError(t, err)
-
-	err = customRegistry.AddMultiPrefix(MultiPrefixInfo{UserPost, "up", []Entity{User, Post}})
 	assert.NoError(t, err)
 
 	userUUID := uuid.MustParse("0195e37b-f93f-7518-a9ac-a2be68463c7e")
@@ -454,51 +453,53 @@ func TestMultiWithCustomSeparator(t *testing.T) {
 	assert.Equal(t, postUUID, parsedPost)
 }
 
-func TestAddMultiPrefixValidation(t *testing.T) {
+func TestNewRegistry2Validation(t *testing.T) {
+	basePrefixes := []PrefixInfo{{User, "user"}, {Post, "post"}}
+
 	t.Run("null entity", func(t *testing.T) {
-		registry, err := NewRegistry([]PrefixInfo{{User, "user"}, {Post, "post"}})
-		assert.NoError(t, err)
-		err = registry.AddMultiPrefix(MultiPrefixInfo{NullEntity, "up", []Entity{User, Post}})
+		_, err := NewRegistry2(basePrefixes, []MultiPrefixInfo{
+			{NullEntity, "up", []Entity{User, Post}},
+		})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "NullEntity")
 	})
 
 	t.Run("bad prefix", func(t *testing.T) {
-		registry, err := NewRegistry([]PrefixInfo{{User, "user"}, {Post, "post"}})
-		assert.NoError(t, err)
-		err = registry.AddMultiPrefix(MultiPrefixInfo{UserPost, "UP!", []Entity{User, Post}})
+		_, err := NewRegistry2(basePrefixes, []MultiPrefixInfo{
+			{UserPost, "UP!", []Entity{User, Post}},
+		})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "prefix must be in lowercase")
 	})
 
 	t.Run("unregistered component", func(t *testing.T) {
-		registry, err := NewRegistry([]PrefixInfo{{User, "user"}})
-		assert.NoError(t, err)
-		err = registry.AddMultiPrefix(MultiPrefixInfo{UserPost, "up", []Entity{User, Post}})
+		_, err := NewRegistry2([]PrefixInfo{{User, "user"}}, []MultiPrefixInfo{
+			{UserPost, "up", []Entity{User, Post}},
+		})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "not registered")
 	})
 
 	t.Run("duplicate entity", func(t *testing.T) {
-		registry, err := NewRegistry([]PrefixInfo{{User, "user"}, {Post, "post"}})
-		assert.NoError(t, err)
-		err = registry.AddMultiPrefix(MultiPrefixInfo{User, "up", []Entity{User, Post}})
+		_, err := NewRegistry2(basePrefixes, []MultiPrefixInfo{
+			{User, "up", []Entity{User, Post}},
+		})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "already registered")
 	})
 
 	t.Run("duplicate prefix", func(t *testing.T) {
-		registry, err := NewRegistry([]PrefixInfo{{User, "user"}, {Post, "post"}})
-		assert.NoError(t, err)
-		err = registry.AddMultiPrefix(MultiPrefixInfo{UserPost, "user", []Entity{User, Post}})
+		_, err := NewRegistry2(basePrefixes, []MultiPrefixInfo{
+			{UserPost, "user", []Entity{User, Post}},
+		})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "already registered")
 	})
 
 	t.Run("fewer than 2 entities", func(t *testing.T) {
-		registry, err := NewRegistry([]PrefixInfo{{User, "user"}, {Post, "post"}})
-		assert.NoError(t, err)
-		err = registry.AddMultiPrefix(MultiPrefixInfo{UserPost, "up", []Entity{User}})
+		_, err := NewRegistry2(basePrefixes, []MultiPrefixInfo{
+			{UserPost, "up", []Entity{User}},
+		})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "at least 2")
 	})
