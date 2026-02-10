@@ -11,6 +11,7 @@ A Go package that provides a type-safe way to work with prefixed UUIDs. This pac
 - Runtime validation of entity types and prefixes
 - Support for versioned entities (e.g., UserV2, UserV3)
 - Customizable separator character (defaults to `.`, can also use `~`)
+- Multi UUID support for encoding multiple UUIDs with a single prefix
 
 ## Installation
 
@@ -99,6 +100,54 @@ if err != nil {
 // uuid.String() == "0195e37b-f93f-7518-a9ac-a2be68463c7e"
 ```
 
+### Multi UUIDs
+
+For cases where you need to encode multiple related UUIDs into a single prefixed string (e.g., a composite key for a user's post comment), you can use multi types:
+
+```go
+const (
+    User            Entity = 1
+    Post            Entity = 2
+    Comment         Entity = 3
+    UserPost        Entity = 10
+    UserPostComment Entity = 11
+)
+
+registry, err := NewRegistry([]PrefixInfo{
+    {User, "user"},
+    {Post, "post"},
+    {Comment, "comment"},
+})
+
+// Register multi types — component entities must already be registered
+registry.AddMultiPrefix(MultiPrefixInfo{UserPost, "up", []Entity{User, Post}})
+registry.AddMultiPrefix(MultiPrefixInfo{UserPostComment, "upc", []Entity{User, Post, Comment}})
+```
+
+Serializing multi UUIDs:
+
+```go
+encoded, err := registry.SerializeMulti(UserPostComment,
+    EntityUUID{User, userUUID},
+    EntityUUID{Post, postUUID},
+    EntityUUID{Comment, commentUUID},
+)
+// Result: "upc.AZXje_k_dRiprKK-aEY8fgGV43v5P3UYqayivmhGPH8BleN7-T91GKmsoryoRjyA"
+```
+
+Deserializing multi UUIDs:
+
+```go
+var parsedUser, parsedPost, parsedComment uuid.UUID
+err := registry.DeserializeMulti(UserPostComment, encoded,
+    EntityUUIDPtr{User, &parsedUser},
+    EntityUUIDPtr{Post, &parsedPost},
+    EntityUUIDPtr{Comment, &parsedComment},
+)
+```
+
+Both `SerializeMulti` and `DeserializeMulti` enforce that the entity types are provided in the correct order matching the multi type definition.
+
 ## Benefits
 
 1. **Type Safety**: The package ensures that UUIDs are used with their correct entity types at runtime.
@@ -116,6 +165,9 @@ The package returns errors in the following cases:
 - `ErrInvalidUUIDBadBase64`: When the base64 part is invalid
 - `ErrInvalidUUIDFormat`: When the decoded bytes don't form a valid UUID
 - `ErrEntityMismatch`: When the entity type doesn't match the prefix
+- `ErrNotMultiEntity`: When using `SerializeMulti`/`DeserializeMulti` with a non-multi entity
+- `ErrUUIDCountMismatch`: When the number of UUID pairs doesn't match the multi type definition
+- `ErrEntityOrderMismatch`: When entities are provided in the wrong order for a multi type
 
 Example error handling:
 ```go
